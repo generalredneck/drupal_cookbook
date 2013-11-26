@@ -7,6 +7,7 @@ action :create do
   server_aliases = new_resource.server_aliases
   site_path      = "#{doc_root}/sites/#{new_resource.subdir}"
   settings_path  = new_resource.settings_dir.nil? ?  "/etc/drupals/#{uri}" : new_resource.settings_dir
+  application_name = uri;
 
   directory settings_path do
     owner     new_resource.owner
@@ -38,6 +39,20 @@ action :create do
         database:       new_resource.db,
         settings_path:  settings_path,
       })
+  end
+  template "#{node['apache']['dir']}/sites-available/#{application_name}.conf" do
+    source   'web_app.conf.erb'
+    owner    'root'
+    group    node['apache']['root_group']
+    mode     '0644'
+    cookbook 'drupal' if 'drupal'
+    variables(
+      :application_name => application_name,
+      :params           => params
+    )
+    if ::File.exists?("#{node['apache']['dir']}/sites-enabled/#{application_name}.conf")
+      notifies :reload, 'service[apache2]'
+    end
   end
 
   settings_compile settings_path
